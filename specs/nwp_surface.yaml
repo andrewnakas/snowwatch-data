@@ -8,17 +8,33 @@ role: >
   and temperature. The primary predictive signal.
 
 sources:
-  # Preferred: analysis-ready Zarr where it exists (no rate limits).
-  - name: dynamical_reformatters
-    use_for: [gfs, hrrr, gefs_mean]
-    type: zarr
-    note: Source Cooperative; gives model grid point — pair with static.yaml terrain.
-  # Fallback / NBM+ECMWF: Open-Meteo Previous-Runs (terrain-downscaled to point).
+  # DEFAULT — fully specified, works for every model today. Start here.
+  # Open-Meteo Previous-Runs (terrain-downscaled to the station point).
   - name: open_meteo_previous_runs
+    default: true
     use_for: [nbm, hrrr, gfs, ifs, aifs]
     type: rest
     endpoint: https://previous-runs-api.open-meteo.com/v1/forecast
-    note: hourly-only; aggregate to daily per _conventions.md. NBM/HRRR CONUS only.
+    request:
+      hourly: "<var>_previous_day<N>"   # e.g. snowfall_previous_day1..7
+      models: "<om_id from models: below>"
+      start_date: "YYYY-MM-DD"
+      end_date: "YYYY-MM-DD"
+      timezone: UTC
+    note: >
+      hourly-only; aggregate to daily per _conventions.md. NBM/HRRR CONUS
+      only (AK -> HTTP 400 {"error":true}; mark that (station,model) empty).
+      Reference client: snowwatch/scripts/backfill_previous_runs.py.
+  # OPTIONAL upgrade — analysis-ready Zarr, no rate limits, but URIs must be
+  # resolved from the provider catalog (do not guess paths).
+  - name: dynamical_reformatters
+    default: false
+    use_for: [gfs, hrrr, gefs_mean]
+    type: zarr
+    resolve: "Browse https://dynamical.org/catalog (Source Cooperative) for the
+      current Zarr URI per model; substitute below before fetching."
+    uri: TBD_RESOLVE_FROM_CATALOG
+    note: gives model grid point — pair with static.yaml terrain (grid_elev_m_*).
   # Deep history / NBM with no public Zarr: raw GRIB on AWS.
   - name: noaa_aws_grib
     use_for: [nbm]

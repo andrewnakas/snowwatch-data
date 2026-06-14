@@ -14,6 +14,7 @@ role: >
 
 sources:
   - name: open_meteo_forecast
+    default: true
     type: rest
     endpoint: https://api.open-meteo.com/v1/forecast
     note: >
@@ -21,8 +22,11 @@ sources:
       temperature_850hPa, relative_humidity_850hPa). Verified working on
       models=gfs025 with temporal_resolution=hourly_6 (2026-06).
   - name: dynamical_reformatters
+    default: false
     use_for: [gfs, gefs]
     type: zarr
+    resolve: "Resolve the pressure-level Zarr URI from https://dynamical.org/catalog; don't guess paths."
+    uri: TBD_RESOLVE_FROM_CATALOG
     note: pressure-level Zarr where published; richer history than the API.
   - name: era5_land_reanalysis
     type: zarr

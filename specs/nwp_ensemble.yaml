@@ -10,13 +10,17 @@ role: >
 
 sources:
   - name: open_meteo_ensemble
+    default: true
     type: rest
     endpoint: https://ensemble-api.open-meteo.com/v1/ensemble
     models: [gfs025, ecmwf_aifs025]   # GEFS + AIFS-ENS
     note: live/recent only; good for the operational build.
   - name: dynamical_reformatters
+    default: false
     use_for: [gefs]
     type: zarr
+    resolve: "Resolve the GEFS member Zarr URI from https://dynamical.org/catalog; don't guess paths."
+    uri: TBD_RESOLVE_FROM_CATALOG
     note: GEFS member archive (35-day) on Source Cooperative — use for history.
   - name: noaa_aws_grib
     use_for: [gefs]

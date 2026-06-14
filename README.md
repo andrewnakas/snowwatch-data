@@ -42,6 +42,25 @@ All forecast stores are **point-extracted at SNOTEL station coordinates**
 (see `specs/stations.csv`), not full grids — SnowWatch is a point system and
 this keeps the stores tiny relative to the source archives.
 
+## Ingest order (for the reformatter)
+
+Each spec lists multiple `sources`; **one is marked `default: true` and is
+fully specified — start there.** Sources marked `default: false` with
+`uri: TBD_RESOLVE_FROM_CATALOG` are optional upgrades (analysis-ready Zarr,
+no rate limits) whose exact paths must be resolved from the provider catalog
+first — do not guess them.
+
+Recommended sequence (highest value first):
+1. `snotel_obs` — the targets. No auth, fast, unblocks everything downstream.
+2. `nwp_surface` — daily forecasts via Open-Meteo Previous-Runs (default).
+   CONUS stations first (NBM is the key feature and is CONUS-only).
+3. `nwp_profiles` — storm-gated pressure-level temp **+ RH** (the SLR lever).
+4. `nwp_ensemble` — spread / event probability.
+5. `static`, `reanalysis` — terrain features and (v2) physical-SLR truth.
+
+Everything is idempotent (see `_conventions.md` → Idempotency): safe to stop
+and resume; re-running never refetches a completed or known-empty tile.
+
 ## Sources
 
 - **Open-Meteo Forecast / Ensemble / Previous-Runs APIs** — the current
