@@ -8,10 +8,25 @@ role: Observed snow depth, SWE, precip, temperature — the verification truth.
 source:
   name: nrcs_awdb
   type: rest
-  endpoint: https://wcc-awdb.example/api   # NRCS AWDB REST /data
+  base_url: https://wcc.sc.egov.usda.gov/awdbRestApi/services/v1
+  endpoints:
+    stations: GET /stations?networkCds=SNTL   # catalogue (id, triplet, lat, lon, elev, beginDate/endDate)
+    data: GET /data                            # the observation pull
+  data_request:
+    # comma-separated; ~40 triplets/call is safe
+    stationTriplets: "<csv of triplets, e.g. 1344:CO:SNTL,335:CO:SNTL>"
+    elements: "WTEQ,SNWD,PRCPSA,TAVG"
+    duration: "DAILY"          # or "HOURLY" (SNWD,WTEQ only) for QC rebuilds
+    beginDate: "YYYY-MM-DD"
+    endDate: "YYYY-MM-DD"
+  response_shape: >
+    JSON list, one object per station with .stationTriplet and .data[] where
+    each .data[] has .stationElement.elementCode (WTEQ|SNWD|PRCPSA|TAVG) and
+    .values[] of {date, value}. Map elementCode -> key per `elements` below.
   note: >
-    stationTriplets accepts comma-separated lists (~40/call). DAILY and
-    HOURLY durations. elementCodes below.
+    No auth required. Public USDA NRCS Air-Water Database REST API. Triplets
+    come from the /stations call (the catalogue is also pinned in
+    stations.csv). See snowwatch/app/snotel.py for a reference client.
 
 elements:
   - {code: SNWD,   key: snow_depth, units: in_native, note: ultrasonic; noisy, needs QC}
