@@ -1,0 +1,38 @@
+# Reanalysis profiles for the training period (analysis "truth" atmosphere).
+# For training the SLR/phase physics we want the BEST estimate of what the
+# atmosphere actually did over each station during past events — not a past
+# forecast of it. ERA5-Land (and ERA5 pressure levels) give that. Used as
+# features/labels for fitting the physical SLR model; optional for v1 but the
+# clean path to a publishable SLR climatology.
+id: reanalysis
+role: Analysis-grade profiles over stations for the historical training window.
+
+sources:
+  - name: era5_land
+    type: zarr
+    note: >
+      Multiple analysis-ready ERA5-Land Zarr mirrors exist (Google ARCO-ERA5,
+      dynamical.org, WeatherBench2). Use ARCO-ERA5 (gs://gcp-public-data-arco-era5)
+      for pressure levels; point-extract at stations.
+  - name: arco_era5
+    type: zarr
+    bucket: gcp-public-data-arco-era5
+
+levels_hpa: [1000, 925, 850, 700, 600, 500]
+variables:
+  temperature:         {units: degC, per_level: true}
+  relative_humidity:   {units: percent, per_level: true}
+  geopotential:        {units: m, per_level: true}
+  u_wind: {units: m_s, per_level: true, required: false}
+  v_wind: {units: m_s, per_level: true, required: false}
+surface_variables:
+  - {name: 2m_temperature, units: degC}
+  - {name: 2m_dewpoint, units: degC}
+  - {name: total_precipitation, units: mm}
+
+dims: [time, station, level]
+history:
+  start: "2010-10-01"   # deep enough for a multi-year SLR climatology
+  cadence_hours: 6
+target_store: schemas/reanalysis.zarr.md
+priority: optional   # v2 — fit physical SLR; not blocking the operational model

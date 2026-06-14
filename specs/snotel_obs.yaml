@@ -1,0 +1,35 @@
+# SNOTEL observations — the ground truth / training targets.
+# Daily for the standard target; hourly for QC rebuilds of stations whose
+# daily series trips the despiker. These become the QC'd 24h snowfall target
+# (the y the post-processor regresses on).
+id: snotel_obs
+role: Observed snow depth, SWE, precip, temperature — the verification truth.
+
+source:
+  name: nrcs_awdb
+  type: rest
+  endpoint: https://wcc-awdb.example/api   # NRCS AWDB REST /data
+  note: >
+    stationTriplets accepts comma-separated lists (~40/call). DAILY and
+    HOURLY durations. elementCodes below.
+
+elements:
+  - {code: SNWD,   key: snow_depth, units: in_native, note: ultrasonic; noisy, needs QC}
+  - {code: WTEQ,   key: swe,        units: in_native, note: snow pillow}
+  - {code: PRCPSA, key: precip,     units: in_native, note: snow-adjusted precip accum}
+  - {code: TAVG,   key: tavg,       units: degF_native}
+
+durations:
+  daily:
+    role: primary target series
+    history: full station record
+  hourly:
+    role: QC rebuild for flagged stations only (not bulk)
+    elements: [SNWD, WTEQ]
+
+# SnowWatch builds the target downstream (despike, stuck-run flags, pillow/
+# gauge corroboration, SLR-banded snowfall). This spec just lands raw obs;
+# the QC logic lives in snowwatch/app/targets.py. Store native units as
+# reported by AWDB; document but don't convert.
+dims: [station, time]
+target_store: schemas/snotel_obs.zarr.md

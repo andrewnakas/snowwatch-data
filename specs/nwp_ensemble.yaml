@@ -1,0 +1,37 @@
+# Ensemble member forecasts -> spread / probabilistic features.
+# Per-member snowfall and precip; SnowWatch reduces these to per-day spread
+# stats (std, p10/p50/p90, P(>0)) that feed the quantile post-processor and
+# the uncertainty band in the UI. GEFS member history (from dynamical.org)
+# is something the Open-Meteo previous-runs API cannot give.
+id: nwp_ensemble
+role: >
+  Per-(model, init_time, lead, station, member) snowfall + precip, retained
+  as members (SnowWatch computes spread) OR pre-reduced to spread stats.
+
+sources:
+  - name: open_meteo_ensemble
+    type: rest
+    endpoint: https://ensemble-api.open-meteo.com/v1/ensemble
+    models: [gfs025, ecmwf_aifs025]   # GEFS + AIFS-ENS
+    note: live/recent only; good for the operational build.
+  - name: dynamical_reformatters
+    use_for: [gefs]
+    type: zarr
+    note: GEFS member archive (35-day) on Source Cooperative — use for history.
+  - name: noaa_aws_grib
+    use_for: [gefs]
+    buckets: [noaa-gefs-pds]
+
+variables:
+  snowfall:      {units: cm, agg: sum}
+  precipitation: {units: mm, agg: sum}
+
+# If storing reduced spread instead of raw members, compute per (init,lead,station):
+reduced_stats: [mean, std, p10, p50, p90, prob_positive]
+
+dims: [model, init_time, lead_days, station, member]   # or drop `member` if reduced
+leads: [1, 2, 3, 4, 5, 6, 7]
+history:
+  start: "2024-10-01"
+  cadence_hours: 6
+target_store: schemas/nwp_ensemble.zarr.md

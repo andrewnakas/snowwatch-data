@@ -1,0 +1,37 @@
+# Static per-station attributes + terrain. Small, Parquet not Zarr.
+# The grid-vs-station elevation difference is a first-class feature: NWP point
+# extraction gives the model's grid-cell elevation, which in complex terrain
+# differs from the real station by hundreds of meters — a systematic temp/
+# precip bias the post-processor learns to correct (lapse-rate feature).
+id: static
+role: Station metadata, terrain, and derived climate class for the pooled model.
+
+source:
+  - name: nrcs_awdb_metadata
+    type: rest
+    note: station name/lat/lon/elevation/state.
+  - name: nwp_grid_elevation
+    type: derived
+    note: >
+      record each model's grid-cell elevation at the point used for
+      extraction (most NWP Zarr/GRIB carry a surface geopotential/orography
+      field). Store per (station, model).
+
+columns:
+  - {name: station_id,   type: str}
+  - {name: triplet,      type: str,   note: "NRCS triplet e.g. 1344:CO:SNTL"}
+  - {name: name,         type: str}
+  - {name: state,        type: str}
+  - {name: lat,          type: float}
+  - {name: lon,          type: float}
+  - {name: elevation_m,  type: float, note: station elevation}
+  - {name: grid_elev_m_nbm,  type: float, required: false}
+  - {name: grid_elev_m_hrrr, type: float, required: false}
+  - {name: grid_elev_m_gfs,  type: float, required: false}
+  # derived climate descriptors (SnowWatch can compute, or precompute here):
+  - {name: djf_tavg_c,     type: float, required: false}
+  - {name: djf_precip_mm,  type: float, required: false}
+  - {name: median_slr,     type: float, required: false}
+  - {name: snow_class,     type: str,   required: false, note: "maritime|intermountain|continental"}
+
+target_store: schemas/static.parquet.md

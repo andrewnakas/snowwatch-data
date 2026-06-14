@@ -1,0 +1,57 @@
+# Pressure-level profiles — THE accuracy lever for SLR + precip phase.
+# Surface temperature alone cannot determine snow-to-liquid ratio or whether
+# precip falls as snow. The vertical temperature + HUMIDITY structure can:
+#   - wet-bulb (temp + RH) -> phase: snow falls above 0C dry-bulb in dry air
+#   - dendritic growth zone (-12..-18C) saturation -> fluffy high-SLR crystals
+#   - 1000-500 thickness -> rain/snow line (~5400 m)
+# This is the dataset most snow-forecast systems omit and the one that lets
+# SnowWatch compute SLR physically (app/snowphysics.py).
+id: nwp_profiles
+role: >
+  Per-(model, init_time, lead, station, level) profile of temperature,
+  relative humidity, wind, and geopotential height at standard pressure
+  levels. Consumed by the physical SLR/phase features.
+
+sources:
+  - name: open_meteo_forecast
+    type: rest
+    endpoint: https://api.open-meteo.com/v1/forecast
+    note: >
+      hourly pressure-level vars named `<var>_<level>hPa` (e.g.
+      temperature_850hPa, relative_humidity_850hPa). Verified working on
+      models=gfs025 with temporal_resolution=hourly_6 (2026-06).
+  - name: dynamical_reformatters
+    use_for: [gfs, gefs]
+    type: zarr
+    note: pressure-level Zarr where published; richer history than the API.
+  - name: era5_land_reanalysis
+    type: zarr
+    use_for: [training_period_truth]
+    note: see reanalysis.yaml — analysis profiles for past training pairs.
+
+models:
+  - {key: gfs,  om_id: gfs025, max_lead: 7}
+  - {key: gefs, om_id: gfs025, max_lead: 7, note: member spread if available}
+
+levels_hpa: [1000, 925, 850, 700, 600, 500]
+required_levels_hpa: [1000, 850, 700, 600, 500]  # minimum for physics
+
+variables:
+  temperature:        {units: degC, per_level: true}
+  relative_humidity:  {units: percent, per_level: true}   # critical: enables wet-bulb + DGZ
+  wind_speed:         {units: m_s, per_level: true}
+  geopotential_height: {units: m, per_level: true}        # for thickness
+
+# Profiles are expensive; the fetcher should storm-gate (only pull a
+# (station, init_time) when that model forecasts meaningful QPF there).
+fetch_policy:
+  storm_gate: true
+  qpf_threshold_mm: 2.0
+  temporal_resolution: hourly_6   # 4 snapshots/day is enough for daily features
+
+dims: [model, init_time, lead_days, station, level]
+leads: [1, 2, 3, 4, 5, 6, 7]
+history:
+  start: "2024-10-01"
+  cadence_hours: 6
+target_store: schemas/nwp_profiles.zarr.md

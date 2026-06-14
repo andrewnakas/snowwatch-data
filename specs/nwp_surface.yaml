@@ -1,0 +1,50 @@
+# Daily surface NWP forecasts, point-extracted at SNOTEL stations.
+# The bread-and-butter inputs: each model's daily snowfall / QPF / temperature
+# at leads 1..7. These drive every existing ensemble member and the pooled
+# post-processor's core features.
+id: nwp_surface
+role: >
+  Per-(model, init_time, lead, station) daily forecast of snowfall, precip,
+  and temperature. The primary predictive signal.
+
+sources:
+  # Preferred: analysis-ready Zarr where it exists (no rate limits).
+  - name: dynamical_reformatters
+    use_for: [gfs, hrrr, gefs_mean]
+    type: zarr
+    note: Source Cooperative; gives model grid point — pair with static.yaml terrain.
+  # Fallback / NBM+ECMWF: Open-Meteo Previous-Runs (terrain-downscaled to point).
+  - name: open_meteo_previous_runs
+    use_for: [nbm, hrrr, gfs, ifs, aifs]
+    type: rest
+    endpoint: https://previous-runs-api.open-meteo.com/v1/forecast
+    note: hourly-only; aggregate to daily per _conventions.md. NBM/HRRR CONUS only.
+  # Deep history / NBM with no public Zarr: raw GRIB on AWS.
+  - name: noaa_aws_grib
+    use_for: [nbm]
+    type: grib2
+    buckets: [noaa-nbm-grib2-pds]
+
+models:
+  # key, open-meteo id, available variables, max usable lead (days)
+  - {key: nbm,  om_id: ncep_nbm_conus,          vars: [snowfall, precipitation, temperature_2m], max_lead: 7, domain: conus}
+  - {key: hrrr, om_id: ncep_hrrr_conus,         vars: [snowfall, precipitation, temperature_2m], max_lead: 2, domain: conus}
+  - {key: gfs,  om_id: gfs_global,              vars: [snowfall, precipitation, temperature_2m], max_lead: 7, domain: global}
+  - {key: ifs,  om_id: ecmwf_ifs025,           vars: [precipitation, temperature_2m],           max_lead: 7, domain: global}
+  - {key: aifs, om_id: ecmwf_aifs025_single,   vars: [precipitation, temperature_2m],           max_lead: 7, domain: global}
+  # NOTE: gfs025 / ecmwf_aifs025 return all-null on the OM daily endpoint —
+  # use gfs_global / ecmwf_aifs025_single (verified 2026-06).
+
+variables:
+  snowfall:      {units: cm,  agg: sum}
+  precipitation: {units: mm,  agg: sum}    # QPF / liquid equivalent
+  temperature_2m: {units: degC, agg: [mean, max, min]}
+  # optional but useful where available:
+  precipitation_probability: {units: percent, agg: mean, required: false}
+
+dims: [model, init_time, lead_days, station]
+leads: [1, 2, 3, 4, 5, 6, 7]
+history:
+  start: "2024-10-01"   # Open-Meteo Previous-Runs floor; extend via GRIB
+  cadence_hours: 6      # 00/06/12/18Z runs
+target_store: schemas/nwp_surface.zarr.md

@@ -1,0 +1,11 @@
+# This repo holds the data CONTRACT, not the data itself.
+*.zarr/
+*.parquet
+*.nc
+*.grib2
+*.csv.gz
+__pycache__/
+*.pyc
+.venv/
+.DS_Store
+manifests/   # reformatter-produced progress manifests, not the spec
