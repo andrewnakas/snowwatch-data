@@ -70,10 +70,18 @@ def main() -> int:
     df = df.rename(columns={"snowfall_in_obs": "obs_snowfall_in"})
     truth_cells = len(truth) * 7
     coverage = len(df) / truth_cells
+    sub_stations = set(sub["triplet"].unique())
+    truth_stations = set(truth["triplet"].unique())
     print(f"{len(df)} scored cells, coverage {coverage:.1%} of "
           f"{truth_cells} (station-day × lead)")
+    print(f"stations: {len(sub_stations & truth_stations)}/{len(truth_stations)} "
+          f"in truth; leads present: {sorted(df['lead_days'].unique().tolist())}")
     if coverage < args.min_coverage:
-        print(f"REJECTED: coverage below {args.min_coverage:.0%}")
+        missing_st = len(truth_stations - sub_stations)
+        print(f"REJECTED: coverage below {args.min_coverage:.0%} "
+              f"({missing_st} truth stations absent from submission). "
+              f"Leaderboard rows need the default gate; --min-coverage lowers "
+              f"it for partial baselines (recorded in the score JSON).")
         return 1
 
     out: dict = {"window": args.window, "n": len(df),
